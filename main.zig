@@ -93,7 +93,7 @@ const Tokeniser = struct {
             }
 
             if (isValidSingleCharToken(chars[consumed_chars])) {
-                if (consumed_chars == chars.len-1 or (consumed_chars + 1 < chars.len and std.ascii.isWhitespace(chars[consumed_chars + 1]))) {
+                if (chars[consumed_chars] == '(' or chars[consumed_chars] == ')' or consumed_chars == chars.len-1 or (consumed_chars + 1 < chars.len and std.ascii.isWhitespace(chars[consumed_chars + 1]))) {
                     const token = Token {.character = chars[consumed_chars]};
                     consumed_chars += 1;
                     return .{.token = token, .consumed_chars = consumed_chars};
