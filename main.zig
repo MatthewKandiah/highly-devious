@@ -1,5 +1,13 @@
 const std = @import("std");
 
+const DEBUG = true;
+
+fn debugPrint(comptime fmt: []const u8, args: anytype) void {
+    if (DEBUG) {
+        std.debug.print(fmt, args);
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -68,7 +76,16 @@ const Tokeniser = struct {
             const consumed_chars = next_token_result.consumed_chars;
             idx += consumed_chars;
         }
-        std.debug.print("Done tokenising - {} tokens found", .{self.tokens.len});
+        debugPrint("Done tokenising - {} tokens found\n", .{self.tokens.len});
+        var cnt: usize = 0;
+        while (cnt < self.tokens.len) : (cnt += 1) {
+            debugPrint("cnt: {}, ", .{cnt});
+            const value = self.popFirst();
+                debugPrint("{s}\n", .{ token.string});
+            } else {
+                debugPrint("null\n", .{});
+            }
+        }
     }
 
     fn isValidSingleCharToken(char: u8) bool {
@@ -89,6 +106,7 @@ const Tokeniser = struct {
 
             if (std.ascii.isWhitespace(chars[consumed_chars])) {
                 consumed_chars += 1;
+                debugPrint("Skipping whitespace, consumed_chars: {}\n", .{consumed_chars});
                 continue;
             }
 
@@ -103,11 +121,15 @@ const Tokeniser = struct {
             if (chars[consumed_chars] == '"') {
                 const string_start = consumed_chars;
                 consumed_chars += 1;
-                while (chars[consumed_chars] != '"') {
+                debugPrint("Found first quote: {}\n", .{consumed_chars});
+                while (consumed_chars < chars.len and chars[consumed_chars] != '"') {
+                    if (chars[consumed_chars] != '"' and consumed_chars == chars.len - 1) {return error.IncompleteString;}
                     consumed_chars += 1;
-                    if (consumed_chars >= chars.len) {return error.IncompleteString;}
+                    debugPrint("Found character inside string: {}\n", .{consumed_chars});
                 }
-                if (consumed_chars - string_start < 2) @panic("Should never happen");
+                consumed_chars += 1;
+                debugPrint("Found second quote: {}\n", .{consumed_chars});
+                if (consumed_chars - string_start < 2) std.debug.panic("Should never happen: {}, {}\n", .{consumed_chars, string_start});
                 const string_character_count = consumed_chars - string_start + 2; // total number of characters consumed after finding first quote, excluding the quotation mark characters
                 const string_slice = try self.allocator.alloc(u8, string_character_count);
                 std.mem.copyForwards(u8, string_slice, chars[string_start+1..consumed_chars-1]);
@@ -180,6 +202,7 @@ const TokenType = enum {
 };
 
 // TODO - free string and symbol data
+// TODO - we need to save the type somewhere too so we can actually read these off
 const Token = union(TokenType) {
     character: usize,
     symbol: []const u8,
