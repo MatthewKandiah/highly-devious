@@ -11,6 +11,7 @@ fn debugPrint(comptime fmt: []const u8, args: anytype) void {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
 
     const stdIn = std.io.getStdIn().reader();
     const stdOut = std.io.getStdOut().writer();
