@@ -35,14 +35,11 @@ fn runRepl(
         try writer.print("----------------------\n", .{});
         try tokeniser.tokenise(line);
         tokeniser.debug();
-        if (tokeniser.open_paren_count != tokeniser.close_paren_count) {
-            return error.UnbalancedParenCountsInExpression;
-        }
         // TODO - evaluate s-expression
         if (tokeniser.open_paren_count == tokeniser.close_paren_count) {
             try writer.print("ready to evaluate s-expressions\n", .{});
         } else {
-            try writer.print("invalid s-experession", .{});
+            try writer.print("waiting for more input before evaluating\n", .{});
         }
     }
 }
