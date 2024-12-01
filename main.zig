@@ -34,8 +34,13 @@ fn runRepl(
         }
         try writer.print("----------------------\n", .{});
         try tokeniser.tokenise(line);
-        try writer.print("\n", .{});
-        // try writer.print("{s}\n", .{line});
+        // TODO - if we've got same number of opens and closes, evaluate expression
+        //      - else print error message and clear tokeniser, or wait for more input?
+        if (tokeniser.open_paren_count == tokeniser.close_paren_count) {
+            try writer.print("ready to evaluate s-expressions\n", .{});
+        } else {
+            try writer.print("invalid s-experession", .{});
+        }
     }
 }
 
@@ -76,16 +81,6 @@ const Tokeniser = struct {
             const consumed_chars = next_token_result.consumed_chars;
             idx += consumed_chars;
         }
-        debugPrint("Done tokenising - {} tokens found\n", .{self.tokens.len});
-        var cnt: usize = 0;
-        while (cnt < self.tokens.len) : (cnt += 1) {
-            debugPrint("cnt: {}, ", .{cnt});
-            const value = self.popFirst();
-                debugPrint("{s}\n", .{ token.string});
-            } else {
-                debugPrint("null\n", .{});
-            }
-        }
     }
 
     fn isValidSingleCharToken(char: u8) bool {
@@ -106,13 +101,18 @@ const Tokeniser = struct {
 
             if (std.ascii.isWhitespace(chars[consumed_chars])) {
                 consumed_chars += 1;
-                debugPrint("Skipping whitespace, consumed_chars: {}\n", .{consumed_chars});
                 continue;
             }
 
             if (isValidSingleCharToken(chars[consumed_chars])) {
+                // TODO - not sure this condition needs to be this complex
                 if (chars[consumed_chars] == '(' or chars[consumed_chars] == ')' or consumed_chars == chars.len-1 or (consumed_chars + 1 < chars.len and std.ascii.isWhitespace(chars[consumed_chars + 1]))) {
                     const token = Token {.character = chars[consumed_chars]};
+                    if (chars[consumed_chars] == '(') {
+                        self.open_paren_count += 1;
+                    } else if (chars[consumed_chars] == ')') {
+                        self.close_paren_count += 1;
+                    }
                     consumed_chars += 1;
                     return .{.token = token, .consumed_chars = consumed_chars};
                 }
@@ -121,14 +121,11 @@ const Tokeniser = struct {
             if (chars[consumed_chars] == '"') {
                 const string_start = consumed_chars;
                 consumed_chars += 1;
-                debugPrint("Found first quote: {}\n", .{consumed_chars});
                 while (consumed_chars < chars.len and chars[consumed_chars] != '"') {
                     if (chars[consumed_chars] != '"' and consumed_chars == chars.len - 1) {return error.IncompleteString;}
                     consumed_chars += 1;
-                    debugPrint("Found character inside string: {}\n", .{consumed_chars});
                 }
                 consumed_chars += 1;
-                debugPrint("Found second quote: {}\n", .{consumed_chars});
                 if (consumed_chars - string_start < 2) std.debug.panic("Should never happen: {}, {}\n", .{consumed_chars, string_start});
                 const string_character_count = consumed_chars - string_start + 2; // total number of characters consumed after finding first quote, excluding the quotation mark characters
                 const string_slice = try self.allocator.alloc(u8, string_character_count);
@@ -202,7 +199,6 @@ const TokenType = enum {
 };
 
 // TODO - free string and symbol data
-// TODO - we need to save the type somewhere too so we can actually read these off
 const Token = union(TokenType) {
     character: usize,
     symbol: []const u8,
