@@ -34,6 +34,7 @@ fn runRepl(
         }
         try writer.print("----------------------\n", .{});
         try tokeniser.tokenise(line);
+        tokeniser.debug();
         if (tokeniser.open_paren_count != tokeniser.close_paren_count) {
             return error.UnbalancedParenCountsInExpression;
         }
@@ -70,6 +71,37 @@ const Tokeniser = struct {
         while (next) |node| {
             next = node.next;
             self.allocator.destroy(node);
+        }
+    }
+
+    fn debug(self: Self) void {
+        debugPrint("Token count: {}\n", .{self.tokens.len});
+        debugPrint("Open paren count: {}\n", .{self.open_paren_count});
+        debugPrint("Close paren count: {}\n", .{self.close_paren_count});
+        debugPrint("Tokens: \n", .{});
+        var maybe_next_token = self.tokens.first;
+        while (maybe_next_token != null) {
+            if (maybe_next_token) |next_token| {
+                switch (next_token.data.type) {
+                    .character => debugPrint(
+                        "\ttype: Character, value: {c}\n",
+                        .{@as(u8, @intCast(next_token.data.data.character))},
+                    ),
+                    .symbol => debugPrint(
+                        "\ttype: Symbol, value: {s}\n",
+                        .{next_token.data.data.symbol},
+                    ),
+                    .number => debugPrint(
+                        "\ttype: Number, value: {d}\n",
+                        .{next_token.data.data.number},
+                    ),
+                    .string => debugPrint(
+                        "\ttype: String, value: {s}\n",
+                        .{next_token.data.data.string},
+                    ),
+                }
+                maybe_next_token = next_token.next;
+            }
         }
     }
 
@@ -133,7 +165,7 @@ const Tokeniser = struct {
                 const string_character_count = consumed_chars - string_start + 2; // total number of characters consumed after finding first quote, excluding the quotation mark characters
                 const string_slice = try self.allocator.alloc(u8, string_character_count);
                 std.mem.copyForwards(u8, string_slice, chars[string_start + 1 .. consumed_chars - 1]);
-                const token = Token{ .type = .string, .data = .{ .string = string_slice }};
+                const token = Token{ .type = .string, .data = .{ .string = string_slice } };
                 return .{ .token = token, .consumed_chars = consumed_chars };
             }
 
@@ -152,7 +184,7 @@ const Tokeniser = struct {
                     consumed_chars += 1;
                 }
                 const number = try std.fmt.parseFloat(f64, chars[number_start..consumed_chars]);
-                const token = Token{ .type = .number, .data = .{ .number = number }};
+                const token = Token{ .type = .number, .data = .{ .number = number } };
                 return .{ .token = token, .consumed_chars = consumed_chars };
             }
 
@@ -165,7 +197,7 @@ const Tokeniser = struct {
                 const symbol_character_count = consumed_chars - symbol_start;
                 const symbol_slice = try self.allocator.alloc(u8, symbol_character_count);
                 std.mem.copyForwards(u8, symbol_slice, chars[symbol_start..consumed_chars]);
-                const token = Token{ .type = .symbol, .data = .{ .symbol = symbol_slice }};
+                const token = Token{ .type = .symbol, .data = .{ .symbol = symbol_slice } };
                 return .{ .token = token, .consumed_chars = consumed_chars };
             }
         }
