@@ -97,10 +97,9 @@ const Tokeniser = struct {
         };
     }
 
-    fn getNextToken(self: *Self, chars: []const u8) !struct {token: ?Token, consumed_chars: usize} {
-        var consumed_chars:usize = 0;
+    fn getNextToken(self: *Self, chars: []const u8) !struct { token: ?Token, consumed_chars: usize } {
+        var consumed_chars: usize = 0;
         while (consumed_chars < chars.len) {
-
             if (std.ascii.isWhitespace(chars[consumed_chars])) {
                 consumed_chars += 1;
                 continue;
@@ -108,15 +107,15 @@ const Tokeniser = struct {
 
             if (isValidSingleCharToken(chars[consumed_chars])) {
                 // TODO - not sure this condition needs to be this complex
-                if (chars[consumed_chars] == '(' or chars[consumed_chars] == ')' or consumed_chars == chars.len-1 or (consumed_chars + 1 < chars.len and std.ascii.isWhitespace(chars[consumed_chars + 1]))) {
-                    const token = Token {.character = chars[consumed_chars]};
+                if (chars[consumed_chars] == '(' or chars[consumed_chars] == ')' or consumed_chars == chars.len - 1 or (consumed_chars + 1 < chars.len and std.ascii.isWhitespace(chars[consumed_chars + 1]))) {
+                    const token = Token{ .type = .character, .data = .{ .character = chars[consumed_chars] } };
                     if (chars[consumed_chars] == '(') {
                         self.open_paren_count += 1;
                     } else if (chars[consumed_chars] == ')') {
                         self.close_paren_count += 1;
                     }
                     consumed_chars += 1;
-                    return .{.token = token, .consumed_chars = consumed_chars};
+                    return .{ .token = token, .consumed_chars = consumed_chars };
                 }
             }
 
@@ -124,16 +123,18 @@ const Tokeniser = struct {
                 const string_start = consumed_chars;
                 consumed_chars += 1;
                 while (consumed_chars < chars.len and chars[consumed_chars] != '"') {
-                    if (chars[consumed_chars] != '"' and consumed_chars == chars.len - 1) {return error.IncompleteString;}
+                    if (chars[consumed_chars] != '"' and consumed_chars == chars.len - 1) {
+                        return error.IncompleteString;
+                    }
                     consumed_chars += 1;
                 }
                 consumed_chars += 1;
-                if (consumed_chars - string_start < 2) std.debug.panic("Should never happen: {}, {}\n", .{consumed_chars, string_start});
+                if (consumed_chars - string_start < 2) std.debug.panic("Should never happen: {}, {}\n", .{ consumed_chars, string_start });
                 const string_character_count = consumed_chars - string_start + 2; // total number of characters consumed after finding first quote, excluding the quotation mark characters
                 const string_slice = try self.allocator.alloc(u8, string_character_count);
-                std.mem.copyForwards(u8, string_slice, chars[string_start+1..consumed_chars-1]);
-                const token = Token {.string = string_slice};
-                return .{.token = token, .consumed_chars = consumed_chars};
+                std.mem.copyForwards(u8, string_slice, chars[string_start + 1 .. consumed_chars - 1]);
+                const token = Token{ .type = .string, .data = .{ .string = string_slice }};
+                return .{ .token = token, .consumed_chars = consumed_chars };
             }
 
             if (std.ascii.isDigit(chars[consumed_chars])) {
@@ -151,24 +152,24 @@ const Tokeniser = struct {
                     consumed_chars += 1;
                 }
                 const number = try std.fmt.parseFloat(f64, chars[number_start..consumed_chars]);
-                const token = Token {.number = number};
-                return .{.token = token, .consumed_chars = consumed_chars};
+                const token = Token{ .type = .number, .data = .{ .number = number }};
+                return .{ .token = token, .consumed_chars = consumed_chars };
             }
 
             if (std.ascii.isAlphanumeric(chars[consumed_chars])) {
                 const symbol_start = consumed_chars;
                 consumed_chars += 1;
-                while (consumed_chars < chars.len and !std.ascii.isWhitespace(chars[consumed_chars]) ) {
+                while (consumed_chars < chars.len and !std.ascii.isWhitespace(chars[consumed_chars])) {
                     consumed_chars += 1;
                 }
                 const symbol_character_count = consumed_chars - symbol_start;
                 const symbol_slice = try self.allocator.alloc(u8, symbol_character_count);
                 std.mem.copyForwards(u8, symbol_slice, chars[symbol_start..consumed_chars]);
-                const token = Token {.symbol = symbol_slice};
-                return .{.token = token, .consumed_chars = consumed_chars};
+                const token = Token{ .type = .symbol, .data = .{ .symbol = symbol_slice }};
+                return .{ .token = token, .consumed_chars = consumed_chars };
             }
         }
-        return .{.token = null, .consumed_chars = consumed_chars};
+        return .{ .token = null, .consumed_chars = consumed_chars };
     }
 
     fn append(self: *Self, token: Token) !void {
@@ -201,9 +202,9 @@ const TokenType = enum {
 };
 
 // TODO - free string and symbol data
-const Token = union(TokenType) {
+const Token = struct { type: TokenType, data: union(TokenType) {
     character: usize,
     symbol: []const u8,
     number: f64,
     string: []const u8,
-};
+} };
