@@ -34,8 +34,10 @@ fn runRepl(
         }
         try writer.print("----------------------\n", .{});
         try tokeniser.tokenise(line);
-        // TODO - if we've got same number of opens and closes, evaluate expression
-        //      - else print error message and clear tokeniser, or wait for more input?
+        if (tokeniser.open_paren_count != tokeniser.close_paren_count) {
+            return error.UnbalancedParenCountsInExpression;
+        }
+        // TODO - evaluate s-expression
         if (tokeniser.open_paren_count == tokeniser.close_paren_count) {
             try writer.print("ready to evaluate s-expressions\n", .{});
         } else {
@@ -138,7 +140,7 @@ const Tokeniser = struct {
                 const number_start = consumed_chars;
                 consumed_chars += 1;
                 var point_found = false;
-                while (!std.ascii.isWhitespace(chars[consumed_chars]) and consumed_chars < chars.len and (std.ascii.isDigit(chars[consumed_chars]) or chars[consumed_chars] == '.')) {
+                while (consumed_chars < chars.len and !std.ascii.isWhitespace(chars[consumed_chars]) and (std.ascii.isDigit(chars[consumed_chars]) or chars[consumed_chars] == '.')) {
                     if (chars[consumed_chars] == '.') {
                         if (point_found) {
                             return error.TooManyPointsInNumber;
@@ -156,7 +158,7 @@ const Tokeniser = struct {
             if (std.ascii.isAlphanumeric(chars[consumed_chars])) {
                 const symbol_start = consumed_chars;
                 consumed_chars += 1;
-                while (!std.ascii.isWhitespace(chars[consumed_chars]) and consumed_chars < chars.len) {
+                while (consumed_chars < chars.len and !std.ascii.isWhitespace(chars[consumed_chars]) ) {
                     consumed_chars += 1;
                 }
                 const symbol_character_count = consumed_chars - symbol_start;
